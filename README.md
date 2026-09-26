@@ -67,6 +67,7 @@ The end-to-end workflow connects Bob, the MCP server, Python services, and the f
 8. For coverage analysis, the `UserPromptSubmit` hook (`coverage-intent-detector.mjs`) detects coverage-related prompts and routes them to the coverage subagent (explore type) via `get_coverage_report`.
 9. Before any deployment, `check_release_readiness` evaluates coverage threshold, open escalations, and target environment validity.
 10. The `PreToolUse` hook (`deploy-guard.mjs`) intercepts `execute_command` calls and blocks patterns like `kubectl apply`, `helm upgrade`, or force-pushes to `main`/`staging` — **human approval is required before any deployment proceeds**.
+11. *(Optional/Planned)* A watsonx Orchestrate `NotifyOnCall` skill delivers structured triage recommendations to on-call engineers via Slack.
 
 ---
 
@@ -74,61 +75,61 @@ The end-to-end workflow connects Bob, the MCP server, Python services, and the f
 
 ```mermaid
 flowchart TD
-    DEV["👤 Developer"] --> BOB["🤖 IBM Bob 2.0"]
-    BOB --> MCP["Node.js MCP Server"]
+    DEV["Developer"]
+    BOB["IBM Bob 2.0\n(agent / plan mode)"]
+    HOOKS["Bob Hooks\n• SessionStart: session-start-context.mjs\n• UserPromptSubmit: coverage-intent-detector.mjs\n• UserPromptSubmit: prompt-gate.mjs\n• PostToolUse: triage-trigger.mjs\n• PreToolUse: deploy-guard.mjs\n• Stop: session-stop-logger.mjs"]
+    MCP["Node.js MCP Server\n(ci-intelligence, STDIO)"]
+    TRIAGE["Triage Subagent\n(general type)"]
+    COVERAGE["Coverage Subagent\n(explore type)"]
+    TOOLS["MCP Tools"]
+    RP["run_pipeline"]
+    SF["store_failure"]
+    RF["recall_failures"]
+    CRR["check_release_readiness"]
+    GCR["get_coverage_report"]
+    PY["Python Core Services\n• ci_client.py\n• coverage_reader.py\n• release_checks.py"]
+    DB["SQLite\nmemory/failures.db\n(failures + sessions tables)"]
+    FIXTURES["Demo Fixtures\ndemo/fixtures/run-42.json"]
+    REPORTS["Coverage Reports\nreports/coverage-feat-auth.json"]
+    JSONL["memory/sessions.jsonl\n(audit log)"]
+    ORC["watsonx Orchestrate\nNotifyOnCall skill\n(Optional/Planned)"]
+
+    DEV -->|"/triage run-42 or prompt"| BOB
+    BOB <-->|"hook events"| HOOKS
+    BOB <-->|"MCP protocol (STDIO)"| MCP
+    BOB -->|"spawns"| TRIAGE
+    BOB -->|"spawns"| COVERAGE
+    TRIAGE -->|"calls recall_failures, store_failure"| MCP
+    COVERAGE -->|"calls get_coverage_report"| MCP
     MCP --> TOOLS
-
-    subgraph TOOLS["MCP Tools"]
-        RP["run_pipeline"]
-        GCR["get_coverage_report"]
-        CRR["check_release_readiness"]
-        RF["recall_failures"]
-        SF["store_failure"]
-    end
-
-    RP -.->|"Python implementation / integration boundary"| PY_CI["ci_client.py"]
-    GCR -.->|"Python implementation / integration boundary"| PY_COV["coverage_reader.py"]
-    CRR -.->|"Python implementation / integration boundary"| PY_REL["release_checks.py"]
-
-    RP --> FIX["CI fixture / demo data"]
-    GCR --> REPORTS["Coverage report"]
+    TOOLS --> RP
+    TOOLS --> SF
+    TOOLS --> RF
+    TOOLS --> CRR
+    TOOLS --> GCR
+    RP --> FIXTURES
+    GCR --> REPORTS
     CRR --> REPORTS
-    RF --> DB[("SQLite Failure Memory")]
     SF --> DB
-    CRR --> DB
-
-    TOOLS -->|"results"| MCP
-    MCP -->|"structured result"| BOB
-
-    BOB -->|"pipeline failed"| TRIAGE["🔍 Triage Subagent"]
-    BOB -->|"coverage question"| COVERAGE["📊 Coverage Subagent"]
-    TRIAGE -->|"recall_failures"| RF
-    TRIAGE -->|"store_failure"| SF
-    COVERAGE --> GCR
-
-    DB -->|"recalled next session"| BOB
-
-    HOOKS["Bob Hooks\nPrompt filtering\nFailure trigger\nDeploy guard\nSession logging"]
-    BOB -.-> HOOKS
-    HOOKS -->|"session ends"| LOG["Session audit log"]
-
-    BOB --> READY{"Release Readiness\nPASS / WARNING / BLOCKER"}
-    CRR --> READY
-    READY --> GATE{"Deployment Safety Gate"}
-    GATE -->|"blocked pattern"| BLOCKED["🚫 Explain reason to developer"]
-    GATE -->|"passes + human approval"| DEPLOY["✅ Deploy"]
+    RF --> DB
+    HOOKS -->|"Stop hook writes"| JSONL
+    HOOKS -->|"Stop hook writes"| DB
+    BOB -->|"Optional/Planned"| ORC
+    PY -.->|"logic referenced by"| MCP
 ```
 
-How the workflow runs end-to-end:
+### Architectural layers
 
-1. A developer starts a task with `/triage <run-id>` or a natural-language prompt in Bob.
-2. Bob calls the Node.js MCP server, which exposes the CI intelligence tools (`run_pipeline`, `get_coverage_report`, `check_release_readiness`, `recall_failures`, `store_failure`).
-3. `run_pipeline` and `get_coverage_report` read pipeline and coverage data from fixtures/reports; the matching Python modules (`ci_client.py`, `coverage_reader.py`, `release_checks.py`) implement the same logic but are exercised by the test suite, not called by the Node.js tools at runtime.
-4. A failed pipeline run triggers the Triage Subagent, which computes a failure signature and calls `recall_failures` to look up similar failures in the SQLite failure memory.
-5. The subagent picks a recommendation (revert / rerun / fix / escalate) and calls `store_failure` to save it back to failure memory, so future sessions recall it too.
-6. A coverage question routes to the Coverage Subagent, which calls `get_coverage_report` for per-file gaps.
-7. `check_release_readiness` feeds into the release-readiness check, which the Deployment Safety Gate uses to block risky commands (explaining why) or allow deployment once a human approves.
-8. Bob hooks handle the surrounding automation — filtering prompts, triggering triage, guarding deploys, and logging each session.
+| Layer | Files | Responsibility |
+|-------|-------|----------------|
+| **IBM Bob config** | `.bob/settings.json`, `.bob/mcp.json`, `.bob/rules/`, `.bob/commands/` | Hooks, MCP registration, agent rules, slash commands |
+| **Bob hooks** | `.bob/hooks/*.mjs` | Lifecycle event handlers: context injection, triage trigger, deploy guard, session logging |
+| **Bob subagents** | `.bob/subagents/triage.md`, `.bob/subagents/coverage.md` | Triage and coverage subagent rule files |
+| **MCP server** | `mcp/server.js`, `mcp/tools/*.js`, `mcp/db.js` | Node.js tool interface over STDIO; SQLite access via `sql.js` |
+| **Python services** | `python/ci_client.py`, `python/coverage_reader.py`, `python/release_checks.py` | Business logic for CI data, coverage, and release readiness |
+| **Failure memory** | `memory/schema.sql`, `memory/seed.sql`, `memory/failures.db` | SQLite store for failures and sessions |
+| **Demo fixtures** | `demo/fixtures/run-42.json`, `reports/coverage-feat-auth.json` | Reproducible demo data; used when CI API is unavailable |
+| **Evaluation** | `evaluation/benchmark.py`, `evaluation/fixtures/` | Offline benchmark measuring recall accuracy and recommendation quality |
 
 ---
 
