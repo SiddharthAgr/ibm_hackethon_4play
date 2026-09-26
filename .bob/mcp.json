@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "ci-intelligence": {
+      "command": "node",
+      "args": ["bob-ci-agent/mcp/server.js"],
+      "env": {
+        "CI_API_TOKEN": "${CI_API_TOKEN}",
+        "GITHUB_REPO": "${GITHUB_REPO}"
+      },
+      "alwaysAllow": ["recall_failures", "get_coverage_report", "run_pipeline", "check_release_readiness"]
+    }
+  }
+}

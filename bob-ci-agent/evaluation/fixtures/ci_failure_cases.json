@@ -1,0 +1,193 @@
+[
+  {
+    "case_id": "eval-01",
+    "description": "Known auth token expiry failure — high confidence, should recall f-seed-01 and f-seed-02",
+    "input": {
+      "test_name":        "test_auth_token_expiry",
+      "error_type":       "AssertionError",
+      "failing_file":     "tests/test_auth.py",
+      "failure_message":  "AssertionError: expected 401, got 500 — JWT middleware raised unhandled exception",
+      "run_id":           "run-42"
+    },
+    "signature": "e05df3df6765b575ef14be0d76c581b5d7e29f641cd5520c270680c0fb63ecde",
+    "expected": {
+      "total_found_min":  2,
+      "expected_ids":     ["f-seed-01", "f-seed-02"],
+      "action":           "revert",
+      "confidence":       "high",
+      "should_escalate":  false
+    }
+  },
+  {
+    "case_id": "eval-02",
+    "description": "Known Redis timeout flake — high confidence, should recall f-seed-03 and f-seed-04",
+    "input": {
+      "test_name":        "test_cache_write_under_load",
+      "error_type":       "TimeoutError",
+      "failing_file":     "tests/integration/test_cache.py",
+      "failure_message":  "TimeoutError: Redis connection timed out after 5000ms",
+      "run_id":           "run-45"
+    },
+    "signature": "56effcfd9638d069e96b6a83cc921cdc75e9a53320ce42e4dca4c36949e742eb",
+    "expected": {
+      "total_found_min":  2,
+      "expected_ids":     ["f-seed-03", "f-seed-04"],
+      "action":           "rerun",
+      "confidence":       "high",
+      "should_escalate":  false
+    }
+  },
+  {
+    "case_id": "eval-03",
+    "description": "Known ImportError after dependency removal — medium confidence, should recall f-seed-05",
+    "input": {
+      "test_name":        "test_report_pdf_export",
+      "error_type":       "ImportError",
+      "failing_file":     "tests/test_reports.py",
+      "failure_message":  "ImportError: No module named 'reportlab'",
+      "run_id":           "run-46"
+    },
+    "signature": "df20a04a30cf463be8776afa3cf7937f4df2542b157dcc090194579adfffa7a9",
+    "expected": {
+      "total_found_min":  1,
+      "expected_ids":     ["f-seed-05"],
+      "action":           "fix",
+      "confidence":       "medium",
+      "should_escalate":  false
+    }
+  },
+  {
+    "case_id": "eval-04",
+    "description": "Known TypeError from profile refactor — medium confidence, should recall f-seed-06",
+    "input": {
+      "test_name":        "test_user_profile_serializer",
+      "error_type":       "TypeError",
+      "failing_file":     "tests/test_serializers.py",
+      "failure_message":  "TypeError: expected str, got NoneType — user.display_name returned None",
+      "run_id":           "run-47"
+    },
+    "signature": "3aec2dcde503e9757a0e13b791b32cef046687709ce03958a7c3eea6f9e20f41",
+    "expected": {
+      "total_found_min":  1,
+      "expected_ids":     ["f-seed-06"],
+      "action":           "fix",
+      "confidence":       "medium",
+      "should_escalate":  false
+    }
+  },
+  {
+    "case_id": "eval-05",
+    "description": "Known DNS flake in webhook integration test — high confidence rerun, should recall f-seed-07",
+    "input": {
+      "test_name":        "test_webhook_delivery_external",
+      "error_type":       "ConnectionError",
+      "failing_file":     "tests/integration/test_webhooks.py",
+      "failure_message":  "ConnectionError: [Errno -2] Name or service not known",
+      "run_id":           "run-48"
+    },
+    "signature": "3a9c2298cccd892a01905336e54c10c8dc965680a48d304dc697981241041cf8",
+    "expected": {
+      "total_found_min":  1,
+      "expected_ids":     ["f-seed-07"],
+      "action":           "rerun",
+      "confidence":       "high",
+      "should_escalate":  false
+    }
+  },
+  {
+    "case_id": "eval-06",
+    "description": "Known coverage gate failure — high confidence fix, should recall f-seed-08",
+    "input": {
+      "test_name":        "coverage_gate_check",
+      "error_type":       "CoverageError",
+      "failing_file":     "python/ci_client.py",
+      "failure_message":  "CoverageError: total coverage 68% is below required threshold 80%",
+      "run_id":           "run-49"
+    },
+    "signature": "b34bbc88c80ddf14e54c9a363765fdbff44a90e653e3be706fc4febe5d24e62d",
+    "expected": {
+      "total_found_min":  1,
+      "expected_ids":     ["f-seed-08"],
+      "action":           "fix",
+      "confidence":       "high",
+      "should_escalate":  false
+    }
+  },
+  {
+    "case_id": "eval-07",
+    "description": "Known AttributeError from model migration mismatch — medium confidence, should recall f-seed-09",
+    "input": {
+      "test_name":        "test_pipeline_run_status_model",
+      "error_type":       "AttributeError",
+      "failing_file":     "tests/test_models.py",
+      "failure_message":  "AttributeError: 'PipelineRun' object has no attribute 'triggered_by'",
+      "run_id":           "run-50"
+    },
+    "signature": "3c66c75c496d7e1b0523ace9ee97ad6473fc957e8086a315520bc54f541dbbcb",
+    "expected": {
+      "total_found_min":  1,
+      "expected_ids":     ["f-seed-09"],
+      "action":           "fix",
+      "confidence":       "medium",
+      "should_escalate":  false
+    }
+  },
+  {
+    "case_id": "eval-08",
+    "description": "Known Kubernetes manifest validation failure — low confidence, should escalate",
+    "input": {
+      "test_name":        "test_kubernetes_manifest_validation",
+      "error_type":       "ValidationError",
+      "failing_file":     "tests/test_deploy.py",
+      "failure_message":  "ValidationError: Kubernetes manifest missing required field 'resources.limits'",
+      "run_id":           "run-51"
+    },
+    "signature": "822a91f2d2a3127e29937019a19f744a7849ffe81e7be114e2a8ba4d065c9057",
+    "expected": {
+      "total_found_min":  1,
+      "expected_ids":     ["f-seed-10"],
+      "action":           "escalate",
+      "confidence":       "low",
+      "should_escalate":  true
+    }
+  },
+  {
+    "case_id": "eval-09",
+    "description": "Completely new failure — no prior record, must escalate (tests zero-match path)",
+    "input": {
+      "test_name":        "test_billing_invoice_generation",
+      "error_type":       "ValueError",
+      "failing_file":     "tests/test_billing.py",
+      "failure_message":  "ValueError: Invoice total is negative — discount exceeds subtotal",
+      "run_id":           "run-52"
+    },
+    "signature": "9c9171d7da672706546650088b217d8149e8c0abdb56a32794bbfb4919b8d7fa",
+    "expected": {
+      "total_found_min":  0,
+      "expected_ids":     [],
+      "action":           "escalate",
+      "confidence":       "low",
+      "should_escalate":  true
+    }
+  },
+  {
+    "case_id": "eval-10",
+    "description": "Auth error with different file — different signature, must NOT match eval-01",
+    "input": {
+      "test_name":        "test_auth_token_expiry",
+      "error_type":       "AssertionError",
+      "failing_file":     "tests/test_oauth.py",
+      "failure_message":  "AssertionError: expected 401, got 500 — OAuth token path broken",
+      "run_id":           "run-53"
+    },
+    "signature": "a5af2e26e14c78cc2bf1eaf44621034fe03130fe16ed1c7aed7589dd10e8aebc",
+    "expected": {
+      "total_found_min":  0,
+      "expected_ids":     [],
+      "action":           "escalate",
+      "confidence":       "low",
+      "should_escalate":  true,
+      "note":             "Signature differs from eval-01 because failing_file changed — verifies hash isolation"
+    }
+  }
+]

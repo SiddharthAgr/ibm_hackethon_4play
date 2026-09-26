@@ -2,16 +2,22 @@
   "run_id": "run-42",
   "ref": "feat/auth",
   "status": "failed",
+  "triggered_at": "2025-09-27T08:00:00Z",
+  "branch": "feat/auth",
+  "commit_sha": "d4f9a12b3e8c5f7a21094bc6d8e3f1a45b7c9d0e",
   "failures": [
     {
       "test": "test_auth_token_expiry",
       "error": "AssertionError: expected 401, got 500",
       "file": "tests/test_auth.py",
       "line": 88,
-      "duration_ms": 1203
+      "duration_ms": 1203,
+      "test_name": "test_auth_token_expiry",
+      "error_type": "AssertionError",
+      "failing_file": "tests/test_auth.py",
+      "failure_message": "AssertionError: expected 401, got 500 — JWT middleware raised unhandled exception",
+      "signature": "e05df3df6765b575ef14be0d76c581b5d7e29f641cd5520c270680c0fb63ecde"
     }
   ],
-  "triggered_at": "2026-09-26T10:00:00Z",
-  "branch": "feat/auth",
-  "commit_sha": "a3f9c1d"
+  "_note": "Demo fixture for /triage run-42. Failures contain both Python ci_client schema (test/error/file) and MCP schema (test_name/error_type/failing_file/signature). Signature matches f-seed-01 and f-seed-02 in failures.db → action=revert, confidence=high."
 }
