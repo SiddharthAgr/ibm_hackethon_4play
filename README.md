@@ -113,7 +113,6 @@ flowchart TD
     RF --> DB
     HOOKS -->|"Stop hook writes"| JSONL
     HOOKS -->|"Stop hook writes"| DB
-    BOB -->|"Optional/Planned"| ORC
     PY -.->|"logic referenced by"| MCP
 ```
 
