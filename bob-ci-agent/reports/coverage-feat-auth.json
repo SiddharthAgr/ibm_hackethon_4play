@@ -1,0 +1,36 @@
+{
+  "ref": "feat/auth",
+  "total_coverage_pct": 68.0,
+  "files": [
+    {
+      "path": "src/auth/token.py",
+      "coverage_pct": 82.5,
+      "uncovered_lines": [45, 46, 47]
+    },
+    {
+      "path": "src/auth/middleware.py",
+      "coverage_pct": 55.0,
+      "uncovered_lines": [12, 13, 28, 29, 30, 31, 55, 56, 57, 58]
+    },
+    {
+      "path": "src/auth/session.py",
+      "coverage_pct": 60.0,
+      "uncovered_lines": [99, 100, 101, 110, 111]
+    },
+    {
+      "path": "src/utils/validators.py",
+      "coverage_pct": 91.0,
+      "uncovered_lines": [7]
+    },
+    {
+      "path": "src/utils/crypto.py",
+      "coverage_pct": 50.0,
+      "uncovered_lines": [18, 19, 20, 21, 33, 34]
+    },
+    {
+      "path": "tests/test_auth.py",
+      "coverage_pct": 100.0,
+      "uncovered_lines": []
+    }
+  ]
+}
