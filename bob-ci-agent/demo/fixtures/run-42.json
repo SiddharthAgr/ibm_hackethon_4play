@@ -7,6 +7,11 @@
   "commit_sha": "d4f9a12b3e8c5f7a21094bc6d8e3f1a45b7c9d0e",
   "failures": [
     {
+      "test": "test_auth_token_expiry",
+      "error": "AssertionError: expected 401, got 500",
+      "file": "tests/test_auth.py",
+      "line": 88,
+      "duration_ms": 1203,
       "test_name": "test_auth_token_expiry",
       "error_type": "AssertionError",
       "failing_file": "tests/test_auth.py",
@@ -14,5 +19,5 @@
       "signature": "e05df3df6765b575ef14be0d76c581b5d7e29f641cd5520c270680c0fb63ecde"
     }
   ],
-  "_note": "Demo fixture for /triage run-42. Signature matches f-seed-01 and f-seed-02 in failures.db, producing action=revert confidence=high."
+  "_note": "Demo fixture for /triage run-42. Failures contain both Python ci_client schema (test/error/file) and MCP schema (test_name/error_type/failing_file/signature). Signature matches f-seed-01 and f-seed-02 in failures.db → action=revert, confidence=high."
 }
