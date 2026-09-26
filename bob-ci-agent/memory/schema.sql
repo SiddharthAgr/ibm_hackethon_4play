@@ -1,11 +1,18 @@
 -- =============================================================================
 -- Failure Memory Store — schema.sql
--- Database: SQLite (memory/failures.db)
--- Used by: mcp/tools/store_failure.js, mcp/tools/recall_failures.js
+-- Dialect  : SQLite 3  (NOT T-SQL / SQL Server)
+-- Database : memory/failures.db
+-- Used by  : mcp/tools/store_failure.js, mcp/tools/recall_failures.js
+--
+-- VS Code note: if the MSSQL extension flags this file, set the editor
+-- language mode to "SQL" (plain), not "SQL Server (mssql)".
+-- Workspace setting in .vscode/settings.json:
+--   "files.associations": { "**/memory/*.sql": "sql" }
 -- =============================================================================
 
-PRAGMA journal_mode = WAL;   -- safe for concurrent reads during demo
-PRAGMA foreign_keys = ON;
+-- SQLite-specific pragmas (not valid T-SQL — intentional)
+PRAGMA journal_mode = WAL;   -- write-ahead log: safe for concurrent reads
+PRAGMA foreign_keys = ON;    -- enforce FK constraints
 
 -- ---------------------------------------------------------------------------
 -- failures

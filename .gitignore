@@ -70,6 +70,7 @@ bob-ci-agent/.env
 # IDE / editor
 # ---------------------------------------------------------------------------
 .vscode/
+!.vscode/settings.json
 .idea/
 *.swp
 *.swo

@@ -1,7 +1,8 @@
 -- =============================================================================
 -- Failure Memory Store — seed.sql
--- Populate memory/failures.db with 10 realistic historical CI failures.
--- Run via:  npm run seed-db   (or)   sqlite3 memory/failures.db < memory/seed.sql
+-- Dialect  : SQLite 3  (NOT T-SQL / SQL Server)
+-- Populate : memory/failures.db with 10 realistic historical CI failures.
+-- Run via  : npm run seed-db   (or)   sqlite3 memory/failures.db < memory/seed.sql
 -- =============================================================================
 --
 -- Signatures are stable SHA-256 hashes of:

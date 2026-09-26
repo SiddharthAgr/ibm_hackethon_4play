@@ -1,5 +1,13 @@
 {
+  // Tell VS Code which language mode to use for specific file patterns.
+  // This prevents the MSSQL extension from parsing SQLite files as T-SQL.
   "files.associations": {
-    "**/memory/*.sql": "sql"
-  }
+    "**/memory/*.sql": "sql",
+    "**/memory/seed.sql": "sql",
+    "**/memory/schema.sql": "sql"
+  },
+
+  // Optional: disable MSSQL IntelliSense for .sql files that are not
+  // connected to a SQL Server instance.
+  "mssql.enableSqlAuthenticationProvider": false
 }
