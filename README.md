@@ -92,7 +92,6 @@ flowchart TD
     FIXTURES["Demo Fixtures\ndemo/fixtures/run-42.json"]
     REPORTS["Coverage Reports\nreports/coverage-feat-auth.json"]
     JSONL["memory/sessions.jsonl\n(audit log)"]
-    ORC["watsonx Orchestrate\nNotifyOnCall skill\n(Optional/Planned)"]
 
     DEV -->|"/triage run-42 or prompt"| BOB
     BOB <-->|"hook events"| HOOKS
