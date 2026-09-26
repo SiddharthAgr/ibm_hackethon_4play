@@ -74,79 +74,61 @@ The end-to-end workflow connects Bob, the MCP server, Python services, and the f
 
 ```mermaid
 flowchart TD
-    DEV["👤 Developer\n/triage run-42 or natural language"]
-    BOB["🤖 IBM Bob 2.0"]
-    MCP["Node.js MCP Server\nci-intelligence"]
+    DEV["👤 Developer"] --> BOB["🤖 IBM Bob 2.0"]
+    BOB --> MCP["Node.js MCP Server"]
+    MCP --> TOOLS
 
     subgraph TOOLS["MCP Tools"]
         RP["run_pipeline"]
-        RF["recall_failures"]
-        SF["store_failure"]
         GCR["get_coverage_report"]
         CRR["check_release_readiness"]
+        RF["recall_failures"]
+        SF["store_failure"]
     end
 
-    subgraph PYTHON["Python Core Services\n(business logic — JS tools mirror this layer)"]
-        PY_CI["ci_client.py"]
-        PY_COV["coverage_reader.py"]
-        PY_REL["release_checks.py"]
-    end
+    RP -.->|"Python implementation / integration boundary"| PY_CI["ci_client.py"]
+    GCR -.->|"Python implementation / integration boundary"| PY_COV["coverage_reader.py"]
+    CRR -.->|"Python implementation / integration boundary"| PY_REL["release_checks.py"]
 
-    subgraph DATA["Data"]
-        FIXTURES["CI fixture\ndemo/fixtures/"]
-        REPORTS["Coverage report\nreports/"]
-        DB["SQLite failure memory\nmemory/failures.db"]
-        JSONL["Session audit log\nmemory/sessions.jsonl"]
-    end
-
-    TRIAGE["🔍 Triage Subagent\nrecall → decide → store"]
-    COVERAGE["📊 Coverage Subagent\nanalyse gaps"]
-    GATE{"Deployment\nSafety Gate"}
-    BLOCKED["🚫 Blocked\nhuman approval required"]
-    DEPLOY["✅ Deploy"]
-
-    DEV -->|"prompt or /triage"| BOB
-    BOB -->|"tool call"| MCP
-    MCP --> TOOLS
-
-    RP -.->|"same logic, tested independently"| PY_CI
-    GCR -.->|"same logic, tested independently"| PY_COV
-    CRR -.->|"same logic, tested independently"| PY_REL
-
-    RP --> FIXTURES
-    GCR --> REPORTS
-    RF --> DB
-    SF --> DB
+    RP --> FIX["CI fixture / demo data"]
+    GCR --> REPORTS["Coverage report"]
     CRR --> REPORTS
+    RF --> DB[("SQLite Failure Memory")]
+    SF --> DB
     CRR --> DB
 
     TOOLS -->|"results"| MCP
     MCP -->|"structured result"| BOB
 
-    BOB -->|"pipeline failed"| TRIAGE
-    BOB -->|"coverage question"| COVERAGE
-
+    BOB -->|"pipeline failed"| TRIAGE["🔍 Triage Subagent"]
+    BOB -->|"coverage question"| COVERAGE["📊 Coverage Subagent"]
     TRIAGE -->|"recall_failures"| RF
     TRIAGE -->|"store_failure"| SF
-    COVERAGE -->|"get_coverage_report"| GCR
+    COVERAGE --> GCR
 
-    SF -->|"saves result"| DB
-    DB -->|"⟳ loaded into Bob context\nat next session start"| BOB
+    DB -->|"recalled next session"| BOB
 
-    BOB --> GATE
-    GATE -->|"blocked pattern"| BLOCKED
-    GATE -->|"gate passes"| DEPLOY
+    HOOKS["Bob Hooks\nPrompt filtering\nFailure trigger\nDeploy guard\nSession logging"]
+    BOB -.-> HOOKS
+    HOOKS -->|"session ends"| LOG["Session audit log"]
+
+    BOB --> READY{"Release Readiness\nPASS / WARNING / BLOCKER"}
+    CRR --> READY
+    READY --> GATE{"Deployment Safety Gate"}
+    GATE -->|"blocked pattern"| BLOCKED["🚫 Explain reason to developer"]
+    GATE -->|"passes + human approval"| DEPLOY["✅ Deploy"]
 ```
 
 How the workflow runs end-to-end:
 
-1. **Developer** types `/triage run-42` or a natural language prompt — Bob receives it.
-2. **Bob calls MCP tools** over STDIO: `run_pipeline` fetches the CI result, `recall_failures` queries failure history from SQLite.
-3. **Python Core Services** (`ci_client.py`, `coverage_reader.py`, `release_checks.py`) define the same business logic that the Node.js MCP tools implement — they are the validated, tested reference layer for CI data, coverage analysis, and release gate rules.
-4. **Triage subagent** computes a SHA-256 signature for each failure, matches it against memory, picks an action (revert / rerun / fix / escalate), and calls `store_failure` to persist the result.
-5. **Failure memory loop** — every `store_failure` write grows the SQLite store; at the start of the next Bob session the most recent failures are loaded back into context automatically, so recommendations improve over time.
-6. **Coverage subagent** runs when a coverage question is detected, calling `get_coverage_report` to surface per-file gaps.
-7. **Deployment safety gate** intercepts any deploy command — it checks `check_release_readiness` (coverage ≥ 80%, no open blockers) and blocks execution with exit code 2 until a human approves.
+1. A developer starts a task with `/triage <run-id>` or a natural-language prompt in Bob.
+2. Bob calls the Node.js MCP server, which exposes the CI intelligence tools (`run_pipeline`, `get_coverage_report`, `check_release_readiness`, `recall_failures`, `store_failure`).
+3. `run_pipeline` and `get_coverage_report` read pipeline and coverage data from fixtures/reports; the matching Python modules (`ci_client.py`, `coverage_reader.py`, `release_checks.py`) implement the same logic but are exercised by the test suite, not called by the Node.js tools at runtime.
+4. A failed pipeline run triggers the Triage Subagent, which computes a failure signature and calls `recall_failures` to look up similar failures in the SQLite failure memory.
+5. The subagent picks a recommendation (revert / rerun / fix / escalate) and calls `store_failure` to save it back to failure memory, so future sessions recall it too.
+6. A coverage question routes to the Coverage Subagent, which calls `get_coverage_report` for per-file gaps.
+7. `check_release_readiness` feeds into the release-readiness check, which the Deployment Safety Gate uses to block risky commands (explaining why) or allow deployment once a human approves.
+8. Bob hooks handle the surrounding automation — filtering prompts, triggering triage, guarding deploys, and logging each session.
 
 ---
 
