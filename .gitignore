@@ -1,2 +1,21 @@
+# Python
 __pycache__/
 *.pyc
+*.pyo
+.pytest_cache/
+
+# Node / MCP server
+bob-ci-agent/node_modules/
+bob-ci-agent/.env
+
+# SQLite runtime databases (generated at runtime via npm run seed-db)
+bob-ci-agent/memory/failures.db
+bob-ci-agent/memory/sessions.jsonl
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
