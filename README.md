@@ -72,129 +72,81 @@ The end-to-end workflow connects Bob, the MCP server, Python services, and the f
 
 ## System Architecture
 
-> **Reading this diagram:** Follow the numbered swimlane labels (①–⑩) top-to-bottom for the happy-path triage loop. Dotted lines (`-.->`) show important architectural relationships that are NOT live call paths — specifically, the Python services are standalone tested libraries; the JS MCP tools independently re-implement the same logic using direct file I/O and do not subprocess into Python.
-
 ```mermaid
 flowchart TD
-    subgraph INPUT["① Entry — Developer Trigger"]
-        DEV["Developer\n/triage run-42  OR  natural language prompt"]
+    DEV["👤 Developer\n/triage run-42 or natural language"]
+    BOB["🤖 IBM Bob 2.0"]
+    MCP["Node.js MCP Server\nci-intelligence"]
+
+    subgraph TOOLS["MCP Tools"]
+        RP["run_pipeline"]
+        RF["recall_failures"]
+        SF["store_failure"]
+        GCR["get_coverage_report"]
+        CRR["check_release_readiness"]
     end
 
-    subgraph BOBCORE["② IBM Bob 2.0 — Central Reasoning Layer"]
-        BOB["IBM Bob 2.0\n(agent / plan mode)"]
+    subgraph PYTHON["Python Core Services\n(business logic — JS tools mirror this layer)"]
+        PY_CI["ci_client.py"]
+        PY_COV["coverage_reader.py"]
+        PY_REL["release_checks.py"]
     end
 
-    subgraph HOOKRING["③ Hook Ring — Lifecycle Automation"]
-        direction LR
-        H_START["SessionStart\nsession-start-context.mjs\nInjects last 5 failures as context"]
-        H_PROMPT["UserPromptSubmit\ncoverage-intent-detector.mjs detects coverage keywords\nprompt-gate.mjs blocks dangerous prompts exit-2"]
-        H_POST["PostToolUse\ntriage-trigger.mjs\nFires when run_pipeline returns failures\nInjects structured failure list\nInstructs Bob to spawn triage subagent"]
-        H_PRE["PreToolUse\ndeploy-guard.mjs\nBlocks kubectl/helm/force-push\nexit-2 = hard block, human required"]
-        H_STOP["Stop\nsession-stop-logger.mjs\nWrites sessions.jsonl and DB row"]
+    subgraph DATA["Data"]
+        FIXTURES["CI fixture\ndemo/fixtures/"]
+        REPORTS["Coverage report\nreports/"]
+        DB["SQLite failure memory\nmemory/failures.db"]
+        JSONL["Session audit log\nmemory/sessions.jsonl"]
     end
 
-    subgraph SUBAGENTS["④ Subagents — Spawned by Bob"]
-        TRIAGE["Triage Subagent general type\n1. Compute SHA-256 signature\n2. recall_failures → history lookup\n3. Decide: revert/rerun/fix/escalate\n4. store_failure → persist result"]
-        COVERAGE["Coverage Subagent explore type\n1. get_coverage_report\n2. Analyse per-file gaps\n3. Surface recommendations"]
-    end
+    TRIAGE["🔍 Triage Subagent\nrecall → decide → store"]
+    COVERAGE["📊 Coverage Subagent\nanalyse gaps"]
+    GATE{"Deployment\nSafety Gate"}
+    BLOCKED["🚫 Blocked\nhuman approval required"]
+    DEPLOY["✅ Deploy"]
 
-    subgraph MCPLAYER["⑤ Node.js MCP Server — ci-intelligence STDIO"]
-        MCP["mcp/server.js\nRegisters 5 tools via MCP protocol"]
-        RP["run_pipeline\nReads demo/fixtures/ref.json\nFallback: GitHub Actions API"]
-        SF["store_failure\nINSERT into failures table\nRequires human approval"]
-        RF["recall_failures\nSELECT WHERE signature\nORDER BY stored_at DESC"]
-        CRR["check_release_readiness\nCoverage gate ≥80%\nOpen blockers gate\nTarget_env gate"]
-        GCR["get_coverage_report\nReads reports/coverage-ref.json"]
-    end
+    DEV -->|"prompt or /triage"| BOB
+    BOB -->|"tool call"| MCP
+    MCP --> TOOLS
 
-    subgraph PYSERVICES["⑥ Python Core Services — Pure Business Logic\nNOT called at runtime by JS MCP layer — tested independently"]
-        PY_CI["ci_client.py\nrun_pipeline(ref)\nRef validation + path-traversal guard\nFixture load + schema validation\nReturns normalized dict"]
-        PY_COV["coverage_reader.py\nget_coverage_report(ref)\nLoads reports/coverage-ref.json\nStrict schema + type validation\nReturns output-projected dict"]
-        PY_REL["release_checks.py\ncheck_release_readiness(...)\ncheck_test_pass_rate: PASS/WARN/BLOCKER\ncheck_coverage: PASS/WARN/BLOCKER\ncheck_unresolved_blockers: PASS/BLOCKER\ncheck_branch_behind_main: PASS/WARN/BLOCKER\nAggregates: BLOCKER > WARNING > PASS"]
-        PY_BRIDGE["bridge.py\npython -m python.bridge ref\nCLI adapter for subprocess calls\nstdout: JSON only\nstderr: errors only\nexit 0 / exit 1"]
-    end
+    RP -.->|"same logic, tested independently"| PY_CI
+    GCR -.->|"same logic, tested independently"| PY_COV
+    CRR -.->|"same logic, tested independently"| PY_REL
 
-    subgraph DATASTORES["⑦ Data Stores"]
-        DB["SQLite\nmemory/failures.db\nfailures table with signature index\nsessions table"]
-        FIXTURES["demo/fixtures/run-42.json\nCI pipeline fixture data"]
-        REPORTS["reports/coverage-feat-auth.json\nCoverage report fixture"]
-        JSONL["memory/sessions.jsonl\nAppend-only audit log"]
-    end
+    RP --> FIXTURES
+    GCR --> REPORTS
+    RF --> DB
+    SF --> DB
+    CRR --> REPORTS
+    CRR --> DB
 
-    subgraph DEPLOY["⑧ Deployment Gate — Human Approval Required"]
-        GATE{"deploy-guard\nPASS?"}
-        BLOCKED["BLOCKED\nSurface block reason\nto developer"]
-        APPROVED["APPROVED\nDeploy command\nexecuted"]
-    end
+    TOOLS -->|"results"| MCP
+    MCP -->|"structured result"| BOB
 
-    subgraph LOOP["⑨ Feedback Loop — Session Memory grows with every triage run"]
-        LOOP_NOTE["Every store_failure call writes a new row to failures.db\nNext session's SessionStart hook loads the 5 most recent rows\nback into Bob context — failure memory compounds over time"]
-    end
+    BOB -->|"pipeline failed"| TRIAGE
+    BOB -->|"coverage question"| COVERAGE
 
-    subgraph OPTEXTERNAL["⑩ Optional / Planned"]
-        ORC["watsonx Orchestrate\nnotifications — not yet wired"]
-    end
+    TRIAGE -->|"recall_failures"| RF
+    TRIAGE -->|"store_failure"| SF
+    COVERAGE -->|"get_coverage_report"| GCR
 
-    DEV -->|"1 · /triage or prompt"| BOB
-    BOB <-->|"2 · hooks fire on every turn"| H_START
-    BOB <-->|"2 · hooks fire on every turn"| H_PROMPT
-    BOB <-->|"2 · hooks fire on every turn"| H_POST
-    BOB <-->|"2 · hooks fire on every turn"| H_PRE
-    BOB <-->|"2 · hooks fire on every turn"| H_STOP
+    SF -->|"saves result"| DB
+    DB -->|"⟳ loaded into Bob context\nat next session start"| BOB
 
-    BOB -->|"3 · MCP tool call run_pipeline"| MCP
-    MCP --> RP
-    MCP --> SF
-    MCP --> RF
-    MCP --> CRR
-    MCP --> GCR
-
-    RP -->|"4 · reads fixture"| FIXTURES
-    GCR -->|"4 · reads report"| REPORTS
-    CRR -->|"4 · reads report"| REPORTS
-
-    H_POST -->|"5 · injects failure list, instructs Bob to spawn triage"| BOB
-    BOB -->|"6 · spawns"| TRIAGE
-    BOB -->|"6 · spawns on coverage prompt"| COVERAGE
-
-    TRIAGE -->|"7a · recall_failures"| MCP
-    TRIAGE -->|"7b · store_failure"| MCP
-    COVERAGE -->|"7c · get_coverage_report"| MCP
-
-    SF -->|"8 · INSERT failure row"| DB
-    RF -->|"8 · SELECT by signature"| DB
-    CRR -->|"8 · SELECT open blockers"| DB
-
-    H_STOP -->|"9a · appends JSON line"| JSONL
-    H_STOP -->|"9b · writes session row"| DB
-
-    DB -->|"LOOP: SessionStart reads last 5 failures back into Bob context on next session"| H_START
-
-    BOB -->|"10 · deploy command attempted"| H_PRE
-    H_PRE --> GATE
-    GATE -->|"blocked pattern matched"| BLOCKED
-    GATE -->|"safe or approved"| APPROVED
-
-    BOB -.->|"optional / planned"| ORC
-
-    PY_CI -.->|"parallel impl of run_pipeline logic\nnot called by mcp/tools/run_pipeline.js"| RP
-    PY_COV -.->|"parallel impl of get_coverage_report logic\nnot called by mcp/tools/get_coverage_report.js"| GCR
-    PY_REL -.->|"parallel impl of check_release_readiness logic\nnot called by mcp/tools/check_release_readiness.js"| CRR
-    PY_BRIDGE -.->|"CLI subprocess adapter\ncallable from external scripts"| PY_CI
+    BOB --> GATE
+    GATE -->|"blocked pattern"| BLOCKED
+    GATE -->|"gate passes"| DEPLOY
 ```
 
-### Architectural layers
+How the workflow runs end-to-end:
 
-| Layer | Files | Responsibility |
-|-------|-------|----------------|
-| **IBM Bob config** | `.bob/settings.json`, `.bob/mcp.json`, `.bob/rules/`, `.bob/commands/` | Hooks, MCP registration, agent rules, slash commands |
-| **Bob hooks** | `.bob/hooks/*.mjs` | Lifecycle event handlers: context injection, triage trigger, deploy guard, session logging |
-| **Bob subagents** | `.bob/subagents/triage.md`, `.bob/subagents/coverage.md` | Triage and coverage subagent rule files |
-| **MCP server** | `mcp/server.js`, `mcp/tools/*.js`, `mcp/db.js` | Node.js tool interface over STDIO; SQLite access via `sql.js` |
-| **Python services** | `python/ci_client.py`, `python/coverage_reader.py`, `python/release_checks.py` | Business logic for CI data, coverage, and release readiness |
-| **Failure memory** | `memory/schema.sql`, `memory/seed.sql`, `memory/failures.db` | SQLite store for failures and sessions |
-| **Demo fixtures** | `demo/fixtures/run-42.json`, `reports/coverage-feat-auth.json` | Reproducible demo data; used when CI API is unavailable |
-| **Evaluation** | `evaluation/benchmark.py`, `evaluation/fixtures/` | Offline benchmark measuring recall accuracy and recommendation quality |
+1. **Developer** types `/triage run-42` or a natural language prompt — Bob receives it.
+2. **Bob calls MCP tools** over STDIO: `run_pipeline` fetches the CI result, `recall_failures` queries failure history from SQLite.
+3. **Python Core Services** (`ci_client.py`, `coverage_reader.py`, `release_checks.py`) define the same business logic that the Node.js MCP tools implement — they are the validated, tested reference layer for CI data, coverage analysis, and release gate rules.
+4. **Triage subagent** computes a SHA-256 signature for each failure, matches it against memory, picks an action (revert / rerun / fix / escalate), and calls `store_failure` to persist the result.
+5. **Failure memory loop** — every `store_failure` write grows the SQLite store; at the start of the next Bob session the most recent failures are loaded back into context automatically, so recommendations improve over time.
+6. **Coverage subagent** runs when a coverage question is detected, calling `get_coverage_report` to surface per-file gaps.
+7. **Deployment safety gate** intercepts any deploy command — it checks `check_release_readiness` (coverage ≥ 80%, no open blockers) and blocks execution with exit code 2 until a human approves.
 
 ---
 
