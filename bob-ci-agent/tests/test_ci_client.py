@@ -298,3 +298,18 @@ def test_non_string_ref_raises():
 def test_whitespace_stripped_from_valid_ref():
     result = run_pipeline("  run-42  ")
     assert result["run_id"] == "run-42"
+
+
+# ---------------------------------------------------------------------------
+# Path separator in ref raises InvalidPipelineReferenceError
+# ---------------------------------------------------------------------------
+
+
+def test_path_separator_forward_slash_raises():
+    with pytest.raises(InvalidPipelineReferenceError):
+        run_pipeline("run/42")
+
+
+def test_path_separator_backslash_raises():
+    with pytest.raises(InvalidPipelineReferenceError):
+        run_pipeline("run\\42")
