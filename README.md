@@ -67,7 +67,6 @@ The end-to-end workflow connects Bob, the MCP server, Python services, and the f
 8. For coverage analysis, the `UserPromptSubmit` hook (`coverage-intent-detector.mjs`) detects coverage-related prompts and routes them to the coverage subagent (explore type) via `get_coverage_report`.
 9. Before any deployment, `check_release_readiness` evaluates coverage threshold, open escalations, and target environment validity.
 10. The `PreToolUse` hook (`deploy-guard.mjs`) intercepts `execute_command` calls and blocks patterns like `kubectl apply`, `helm upgrade`, or force-pushes to `main`/`staging` — **human approval is required before any deployment proceeds**.
-11. *(Optional/Planned)* A watsonx Orchestrate `NotifyOnCall` skill delivers structured triage recommendations to on-call engineers via Slack.
 
 ---
 
