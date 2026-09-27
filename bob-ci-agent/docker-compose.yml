@@ -1,0 +1,51 @@
+version: "3.9"
+
+volumes:
+  memory-data:
+  reports-data:
+
+services:
+
+  mcp-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: mcp-server
+    stdin_open: true
+    tty: false
+    volumes:
+      - memory-data:/app/memory
+      - reports-data:/app/reports
+    environment:
+      - CI_API_TOKEN=${CI_API_TOKEN}
+      - GITHUB_REPO=${GITHUB_REPO}
+    profiles:
+      - mcp
+
+  python-tools:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: python-tools
+    volumes:
+      - memory-data:/app/memory
+      - reports-data:/app/reports
+    environment:
+      - CI_API_TOKEN=${CI_API_TOKEN}
+      - GITHUB_REPO=${GITHUB_REPO}
+    profiles:
+      - python
+
+  seed-db:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: mcp-server
+    command: ["node", "scripts/seed-db.js"]
+    volumes:
+      - memory-data:/app/memory
+    environment:
+      - CI_API_TOKEN=${CI_API_TOKEN}
+      - GITHUB_REPO=${GITHUB_REPO}
+    profiles:
+      - seed
