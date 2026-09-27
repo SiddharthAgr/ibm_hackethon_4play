@@ -309,9 +309,16 @@ The seeded report for `feat/auth` (`reports/coverage-feat-auth.json`) has total 
 
 ### Release Readiness
 
-Implemented in two layers: the Node.js MCP tool (`mcp/tools/check_release_readiness.js`) and the Python business logic module (`python/release_checks.py`).
+The release-readiness feature has **two separate implementations** that serve different roles. They are **not dual runtime implementations** and are **not kept in sync** by design:
 
-#### Gate rules (verified from `python/release_checks.py`)
+| Implementation | File | Role |
+|---|---|---|
+| **Node.js MCP tool** | `mcp/tools/check_release_readiness.js` | **Active MCP runtime** — called by the MCP server at runtime. Implements three gates: coverage threshold (≥ 80%), open escalations in failure memory, and valid target environment. |
+| **Python module** | `python/release_checks.py` | **Standalone Python-layer implementation** — tested by pytest as a design artifact. Not called by the Node.js MCP server. |
+
+> **Architecture note:** `mcp/tools/check_release_readiness.js` is the only implementation executed at runtime by the MCP server. `python/release_checks.py` is a separately tested Python-layer implementation. The Node.js server does **not** call the Python module. The two implementations have different gate sets (the Python module also checks test pass rate and branch staleness); this difference must **not** be interpreted as a synchronisation gap — they are independent implementations of the same concept in different layers.
+
+#### Gate rules — Python layer (`python/release_checks.py`)
 
 | Check | PASS | WARNING | BLOCKER |
 |-------|------|---------|---------|
@@ -320,9 +327,15 @@ Implemented in two layers: the Node.js MCP tool (`mcp/tools/check_release_readin
 | **Unresolved blockers** | 0 unresolved escalations | — | ≥ 1 unresolved escalation |
 | **Branch behind main** | 0 commits behind | 1–5 behind | > 5 behind |
 
-**Aggregation rule:** Any BLOCKER → overall `BLOCKER`. No BLOCKER but any WARNING → overall `WARNING`. All PASS → `PASS`.
+#### Gate rules — Node.js MCP runtime (`mcp/tools/check_release_readiness.js`)
 
-**Note on the MCP layer vs. Python layer:** The Node.js MCP tool (`check_release_readiness.js`) currently implements three gates directly: coverage threshold (≥ 80%), open escalations in the failure memory store, and valid target environment. The Python `release_checks.py` module implements the full four-gate suite (including test pass rate and branch staleness) and is the authoritative business logic layer. The Node.js layer does not currently call the Python module; it implements the subset of checks available without external test-count or git data. Both implementations are consistent on the coverage threshold.
+| Check | PASS | WARNING | BLOCKER |
+|-------|------|---------|---------|
+| **Coverage threshold** | ≥ 80% | Report missing | < 80% |
+| **Open escalations** | 0 low-confidence open failures | ≥ 1 | — |
+| **Target environment** | `staging` or `dev` | — | Unknown env |
+
+**Aggregation rule (both layers):** Any BLOCKER → overall `BLOCKER`. No BLOCKER but any WARNING → overall `WARNING`. All PASS → `PASS`.
 
 ---
 

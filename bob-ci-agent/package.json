@@ -7,7 +7,7 @@
   "scripts": {
     "start-mcp": "node mcp/server.js",
     "seed-db": "node scripts/seed-db.js",
-    "test": "node --test tests/"
+    "test": "node --test scripts/integration-test.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.1",

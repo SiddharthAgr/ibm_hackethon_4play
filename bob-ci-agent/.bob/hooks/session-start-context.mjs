@@ -16,8 +16,7 @@ import { createRequire } from 'module';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const require   = createRequire(import.meta.url);
 
-const REPO_ROOT = resolve(__dirname, '..', '..');
-const DB_PATH   = resolve(REPO_ROOT, 'bob-ci-agent', 'memory', 'failures.db');
+const DB_PATH = resolve(__dirname, '..', '..', 'memory', 'failures.db');
 
 if (!existsSync(DB_PATH)) {
   process.exit(0);
